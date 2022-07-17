@@ -1,1 +1,13 @@
-<input type="file" id="fileUploader" name="fileUploader" accept=".xls, .xlsx"/>
+
+<app-prepare-list *ngIf="isPrepareList"></app-prepare-list>
+<app-merge-lists *ngIf="isMergeList"></app-merge-lists>
+
+<div *ngIf="!isPrepareList && !isMergeList">
+  <div>
+    <label>Prepare list <input type="checkbox" [(ngModel)]="isPrepareList"></label>
+  </div>
+  <div>
+    <label>Merge lists <input type="checkbox" [(ngModel)]="isMergeList"></label>
+  </div>
+</div>
+

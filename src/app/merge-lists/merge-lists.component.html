@@ -1,0 +1,191 @@
+<div *ngIf="!isFilesMatched">
+    <table>
+        <tr>
+            <td>
+                LM-review files:  <br>
+                <input type="file" (change)="addBaseFiles($event)"  placeholder="Upload LM preview files" accept=".csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" multiple>                
+            </td>
+            <td>
+                zoominfo files: <br>
+                <input type="file" (change)="addZoominfoFiles($event)"  placeholder="Upload zoominfo files" accept=".csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" multiple>                
+            </td>
+        </tr>
+        <!-- <tr>
+            <td>
+                <ul>
+                    <li *ngFor="let column of baseFilesColumns">
+                        {{column}}
+                    </li>
+                </ul>
+            </td>
+            <td>
+                <ul>
+                    <li *ngFor="let column of zoominfoColumns">
+                        {{column}}
+                    </li>
+                </ul>
+            </td>
+        </tr> -->
+    </table>
+
+    <div>
+        <div *ngIf="sameColumns.length>0">
+            Merge with:
+            <select [(ngModel)]="mergeColumn">
+                <option *ngFor="let column of sameColumns">
+                    {{column}}
+                </option>
+            </select>
+        </div>    
+        <button (click)="mergeFiles()">next</button>
+    </div>
+</div>
+
+<div *ngIf="resultFile.length > 0 && !isPhoneSetted">
+    total contacts: {{resultFile.length}} <br>    
+    matched: {{matchedContacts}} <br>
+    without phone number: {{contactsWithoutPhone}}
+
+    <div>
+        Phone number columns: 
+        <ul *ngFor="let column of phoneNumberColumns; let i = index">
+          <li>{{column}} 
+            <button *ngIf="i>0" (click)="moveUpInArray(phoneNumberColumns, i)">^</button>
+            <button *ngIf="i < phoneNumberColumns.length - 1" (click)="moveDownInArray(phoneNumberColumns, i)">v</button>
+            <button (click)="deletePhoneNumberColumn(column)">x</button></li>
+        </ul>
+      
+        <div *ngIf="availibleColumns.length > 0">
+          <select  (change)="phoneNumberColumnSelector" #phoneNumberColumnSelector >
+            <option *ngFor="let column of availibleColumns">{{column}}</option>
+          </select>
+          <button (click)="addPhoneNumberColumn(phoneNumberColumnSelector.value)">+</button>
+        </div>
+    </div>
+
+    <div>
+        default country code: 
+        <select [(ngModel)]="defaultCountryCode">
+          <option *ngFor="let countrycode of countrycodes" value="{{countrycode.ISO}}">
+            {{countrycode.ISO}}
+          </option>
+        </select><br>
+        <label> check to allow other countries <input type="checkbox" [(ngModel)]="isAllowOtherCountries"></label><br>
+        Phone number column name: <input [(ngModel)]="preferablePhoneNumberColumn"><br>
+        <button (click)='setPreferablePhoneNumber()'>set phone</button>
+    </div>
+    <!-- <ul>
+        <li *ngFor="let column of resultFileColumns">
+            {{column}}
+        </li>
+    </ul> -->
+</div>
+<div *ngIf="resultFile.length > 0 && isExportSetted">
+    <!-- <button (click)="filterResultFiles()">check filters</button> -->
+    <div *ngFor="let file of resultFiles | keyvalue">
+        {{file.key}} -- {{file.value.length}}
+    </div>
+    <div>
+        filtered contacts: {{filteredContactCount}}<br>
+        not filtered contacts: {{resultFile.length - filteredContactCount}}
+    </div>
+    <button (click)="getAvailibleProjects()" *ngIf="sessionKey">
+        update projects
+    </button>
+    Export settings:
+    <div>
+        Contact name column: 
+        <select [(ngModel)]="contactNameColumn">
+            <option *ngFor="let column of availibleColumns">{{column}}</option>
+        </select>
+    </div>
+    <div>
+        Website column: 
+        <select [(ngModel)]="websiteColumn">
+            <option *ngFor="let column of availibleColumns">{{column}}</option>
+        </select>
+    </div>
+    <div>
+        <ul>
+            <li *ngFor="let filter of filterByColumns">
+                {{filter}} <button (click)="removeFilterColumn(filter)">x</button>
+            </li>
+        </ul>
+        <select (change)="newFilterColumn" #newFilterColumn>
+                <option *ngFor="let column of resultFileColumns">{{column}}</option>
+        </select>
+        <button (click)="addFilterColumn(newFilterColumn.value)">
+            +
+        </button>
+    </div>
+    <button (click)="buildFilters()">check filters</button>
+    <div *ngIf="filters.length > 0">
+        <table border="1">
+            <tr *ngFor="let filter of filters">
+                <td>
+                    <ul>
+                        <li *ngFor="let condition of filter.filter | keyvalue">
+                            <b>{{condition.key}}</b>=<i>{{condition.value}}</i>
+                        </li>
+                    </ul>
+                </td>
+                <td>
+                    <input [(ngModel)]="filter.filename">
+                </td>
+                <td *ngIf="projects.length > 0">
+                    <select [(ngModel)]="filter.projectId">
+                        <option *ngFor="let project of projects" value="{{project.id}}">
+                            {{project.name}}
+                        </option>
+                    </select>
+                </td>
+            </tr>
+        </table>
+        <div ></div>
+    </div>
+
+    <div>
+        select columns for export
+        <ul>
+            <li *ngFor="let column of exportedColumns">
+                <label><input [(ngModel)]="column.isExported" type="checkbox"> {{column.column}}</label>
+            </li>
+        </ul>
+    </div>
+    <button (click)="exportFiles()">export files</button>
+    <button (click)="exportProjects()"> upload to the projects</button>
+</div>
+
+<div>
+    <ul>
+        <li *ngFor="let project of projectsUploadResult">
+            Project: "{{project.name}}", uploaded {{project.uploaded}} contacts.
+        </li>
+    </ul>
+</div>
+
+<div>
+    <div>
+        <div>
+            User id: <input [(ngModel)]="userId">
+            <button *ngIf="userId" (click)="sendCodeToTelegram()">
+                Send code
+            </button>
+        </div>
+        <div *ngIf="!sessionKey">
+            Code: <input (change)="codeInput" #codeInput>
+            <button (click)="getSessionKey(codeInput.value)">
+                ok
+            </button>
+        </div>
+    </div>
+
+
+
+    <!-- <ul>
+        <li *ngFor="let project of projects">
+            {{project.name}}
+        </li>
+    </ul> -->
+</div>
+
