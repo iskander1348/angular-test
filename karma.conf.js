@@ -25,7 +25,7 @@ module.exports = function (config) {
       suppressAll: true // removes the duplicated traces
     },
     coverageReporter: {
-      dir: require('path').join(__dirname, './coverage/test'),
+      dir: require('path').join(__dirname, './coverage/convolo-xlsx-helper'),
       subdir: '.',
       reporters: [
         { type: 'html' },

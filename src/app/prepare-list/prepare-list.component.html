@@ -1,0 +1,44 @@
+<div>        
+    <input type="file" (change)="addFiles($event)" placeholder="Upload files" accept=".csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" multiple>        
+  </div>  
+  
+  <div>
+    Phone number columns: 
+    <ul *ngFor="let column of phoneNumberColumns; let i = index">
+      <li>{{column}} 
+        <button *ngIf="i>0" (click)="moveUpInArray(phoneNumberColumns, i)">^</button>
+        <button *ngIf="i < phoneNumberColumns.length - 1" (click)="moveDownInArray(phoneNumberColumns, i)">v</button>
+        <button (click)="deletePhoneNumberColumn(column)">x</button></li>
+    </ul>
+  
+    <div *ngIf="availibleColumns.length > 0">
+      <select  (change)="phoneNumberColumnSelector" #phoneNumberColumnSelector >
+        <option *ngFor="let column of availibleColumns">{{column}}</option>
+      </select>
+      <button (click)="addPhoneNumberColumn(phoneNumberColumnSelector.value)">+</button>
+    </div>
+    
+  </div>
+  <div>
+    phone numbers separator: <input [(ngModel)]="phoneNumberSeparator"><br>
+    default country code: 
+    <select [(ngModel)]="defaultCountryCode">
+      <option *ngFor="let countrycode of countrycodes" value="{{countrycode.ISO}}">
+        {{countrycode.ISO}}
+      </option>
+    </select><br>
+    max lines per file: <input [(ngModel)]="maxLinesPerFile"><br>
+    <label> check to allow other countries <input type="checkbox" [(ngModel)]="isAllowOtherCountries"></label>
+  </div>
+  
+  <!-- <div>
+    columns: 
+    <ul *ngFor="let column of columns; let i = index">
+      <li>{{column}}</li>
+    </ul>
+  </div> -->
+  
+  <button (click)="fixPhones()">fix phone numbers</button>
+  <div *ngFor="let file of baseFiles | keyvalue">
+    {{file.key}} <button (click)="exportFile(file.key)">export</button>
+  </div>
