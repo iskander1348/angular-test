@@ -7,8 +7,8 @@ export class IpmaxiApiService{
     
     constructor(private httpClient: HttpClient) {}
 
-    // baseUrl = "http://localhost:4547"
-    baseUrl = "https://custom.api.convolo.ai"
+    baseUrl = "http://localhost:4547"
+    // baseUrl = "https://custom.api.convolo.ai"
 
     generateRandomString(length: number): string{
         const alphabet = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890'
@@ -85,8 +85,8 @@ export class IpmaxiApiService{
             nameColumn?: string,
             websiteColumn?: string
         }
-    ): Observable<{success: true, contacts: {total: number, uploaded: number}} | {success: false, error: string}>{
-        return this.httpClient.put<{success: true, contacts: {total: number, uploaded: number}} | {success: false, error: string}>(
+    ): Observable<{ success: true; contacts: { total: number; uploaded: number, dublicates: number } } | { success: false; error: string }>{
+        return this.httpClient.put<{ success: true; contacts: { total: number; uploaded: number, dublicates: number } } | { success: false; error: string }>(
             `${this.baseUrl}/api/v1/projects/${projectId}/contacts`,
             {
                 userId,

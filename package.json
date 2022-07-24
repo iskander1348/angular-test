@@ -6,7 +6,8 @@
     "start": "ng serve",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
-    "test": "ng test"
+    "test": "ng test",
+    "update-pages": "ng build --configuration production --base-href \"https://iskander1348.github.io/angular-xlsx-helper/\" && npx angular-cli-ghpages --dir=dist/convolo-xlsx-helper"
   },
   "private": true,
   "dependencies": {

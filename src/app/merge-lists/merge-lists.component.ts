@@ -65,13 +65,12 @@ export class MergeListsComponent implements OnInit {
   filterByColumns: string[] = []
   filters: {projectId?: number, filename: string, filter: Record<string, string>}[] = []
 
-  projectsUploadResult: {name: string, uploaded?: number, total?: number, error?: string}[] = []
+  projectsUploadResult: {name: string, uploaded?: number, dublicates?: number, total?: number, error?: string}[] = []
 
   exportedColumns: {column: string, isExported: boolean}[] = []
   filteredContactCount = 0
 
   sendCodeToTelegram(){
-    // console.log(this.userId)
     if (this.userId){
       this.sessionKey = undefined
       this.ipmaxiService.sendCode(this.userId, this.sessionId)
@@ -104,8 +103,10 @@ export class MergeListsComponent implements OnInit {
         this.sessionKey
       ).subscribe(
         response => {
-          if (response)
+          if (response){
             this.projects = response
+            this.saveFiltersData()
+          }           
         }
       )
     }
@@ -148,7 +149,6 @@ export class MergeListsComponent implements OnInit {
 
           //   }
           // }
-          console.log(arraylist[0])
           resolve(arraylist)
         
       }    
@@ -161,7 +161,6 @@ export class MergeListsComponent implements OnInit {
   {    
     // 
     for (const file of event.target.files){
-      // console.log(file)
       const data = await this.getJsonFromFile(file)
       this.baseFiles[file.name] = data
       this.getBaseFileColumns(file.name)
@@ -170,7 +169,6 @@ export class MergeListsComponent implements OnInit {
   } 
   async addZoominfoFiles(event: any){
     for (const file of event.target.files){
-      // console.log(file)
       const data = await this.getJsonFromFile(file)
       this.zoominfoContacts = [...this.zoominfoContacts, ...data]
       this.getZoominfoFileColumns()
@@ -282,7 +280,7 @@ export class MergeListsComponent implements OnInit {
     this.resultFile = this.resultFile.filter(i => i[this.preferablePhoneNumberColumn])
     this.isPhoneSetted = true
     this.isExportSetted = true
-    this.saveNotExportedColumns()
+    this.loadNotExportedColumns()
   }
 
 
@@ -408,28 +406,43 @@ export class MergeListsComponent implements OnInit {
           nameColumn: this.contactNameColumn,
           websiteColumn: this.websiteColumn
         }
-      ).subscribe( 
-        response => {
-          const project = this.projects.find(i => i.id == projectId)
-          if (response.success){
-            this.projectsUploadResult.push(
-              {
-                name: project?.name ?? "",
-                uploaded: response.contacts.uploaded,
-                total: response.contacts.total
+        ).subscribe( 
+          response => {
+            const project = this.projects.find(i => i.id == projectId)
+            let uploadResult = this.projectsUploadResult.find(i => i.name === project!.name)
+            if (response.success){
+              if (uploadResult){
+                uploadResult.total = uploadResult.total ? uploadResult.total + response.contacts.total : response.contacts.total;
+                uploadResult.uploaded = uploadResult.uploaded ? uploadResult.uploaded + response.contacts.uploaded: response.contacts.uploaded;
+                uploadResult.dublicates = uploadResult.dublicates ? uploadResult.dublicates + response.contacts.dublicates: response.contacts.dublicates;
               }
-            )
-          }          
-          else {
-            this.projectsUploadResult.push(
-              {
-                name: project?.name ?? "",
-                error: response.error
+              else{
+                this.projectsUploadResult.push(
+                  {
+                    name: project!.name,
+                    uploaded: response.contacts.uploaded,
+                    total: response.contacts.total,
+                    dublicates: response.contacts.dublicates
+                  }
+                )
               }
-            )
+          }               
+            else {
+              if (uploadResult){
+                uploadResult.error = response.error
+              }
+              else{
+                this.projectsUploadResult.push(
+                  {
+                    name: project?.name ?? "",
+                    error: response.error
+                  }
+                )
+              }
+              
+            }
           }
-        }
-      )
+        )
 
     } 
   }
@@ -466,7 +479,6 @@ export class MergeListsComponent implements OnInit {
         }
         exportedRecords.push(exportedRecord)
       }
-      // console.log(file, records.length)
       const worksheet: XLSX.WorkSheet = XLSX.utils.json_to_sheet(exportedRecords);
       const csvOutput: string = XLSX.utils.sheet_to_csv(worksheet);
       FileSaver.saveAs(new Blob([csvOutput]), `${file}(${exportedRecords.length}).csv`)
@@ -475,7 +487,6 @@ export class MergeListsComponent implements OnInit {
 
   buildFilters(){
     this.getAvailibleProjects()
-    this.loadFiltersData()
     const filters: {filename: string, filter: Record<string, string>}[] = []
     const values: Record<string, string[]> = {}
     // const columns: Record<string, number> = {}
@@ -484,8 +495,6 @@ export class MergeListsComponent implements OnInit {
     for (const column of this.filterByColumns){
       values[column] = this.fieldValues(column)
     }
-    // console.log(filterLength)
-    // console.log()
     for (const column of Object.keys(values)){
       // columns[column] = values[column].length
       filterLength *= values[column].length
@@ -511,8 +520,8 @@ export class MergeListsComponent implements OnInit {
     catch(error){
       console.log(error)
     }
-  //  console.log(filters)
     this.filters = filters
+    this.loadFiltersData()
     // return filters
   }
 
@@ -585,7 +594,17 @@ export class MergeListsComponent implements OnInit {
 
   saveFiltersData(){
     if (this.filters.length > 0){
-      localStorage.setItem("filtersData", JSON.stringify(this.filters))
+      const storedFiltersData:{projectId?: number, filename: string, filter: Record<string, string>}[] = JSON.parse(localStorage.getItem("filtersData") ?? "[]")
+      for (const filter of this.filters){
+        const index = storedFiltersData.findIndex(i => this.compareObjects(i.filter, filter.filter))
+        if (index > -1){
+          storedFiltersData[index] = filter
+        }
+        else{
+          storedFiltersData.push(filter)
+        }
+      }
+      localStorage.setItem("filtersData", JSON.stringify(storedFiltersData))
     }
   }
 
@@ -593,7 +612,7 @@ export class MergeListsComponent implements OnInit {
     const storedFiltersData:{projectId?: number, filename: string, filter: Record<string, string>}[] = JSON.parse(localStorage.getItem("filtersData") ?? "[]")
     if (Array.isArray(storedFiltersData) && storedFiltersData.length > 0){
       for (const storedFilter of storedFiltersData){
-        const filter = this.filters.find(i => JSON.stringify(i.filter)===JSON.stringify(storedFilter.filter))
+        const filter = this.filters.find(i => this.compareObjects(i.filter, storedFilter.filter))
         if (filter){
           filter.filename = storedFilter.filename
           filter.projectId = storedFilter.projectId
@@ -615,6 +634,7 @@ export class MergeListsComponent implements OnInit {
       column: string;
       isExported: boolean;
   }[] = JSON.parse(localStorage.getItem("notExportedColumns") ?? "[]")
+  console.log(notExportedColumns)
     if (Array.isArray(notExportedColumns) && notExportedColumns.length > 0){
       for (const column of notExportedColumns){
         const existingColumn = this.exportedColumns.find(i => i.column===column.column)
@@ -624,6 +644,16 @@ export class MergeListsComponent implements OnInit {
       }
     }
     
+  }
+
+  compareObjects(a: Record<string, string>, b: Record<string, string>): boolean{
+    if (Object.keys(a).length !== Object.keys(b).length)
+      return false
+    for (const key of Object.keys(a)){
+      if (a[key] !== b[key])
+        return false
+    }
+    return true
   }
 
 
