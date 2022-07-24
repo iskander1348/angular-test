@@ -41,7 +41,7 @@ export class PrepareListComponent implements OnInit {
           let workbook = XLSX.read(data, {type:"binary"});   
           var first_sheet_name = workbook.SheetNames[0];  
           let worksheet = workbook.Sheets[first_sheet_name];  
-          let arraylist = XLSX.utils.sheet_to_json(worksheet,{raw:true});   
+          let arraylist = XLSX.utils.sheet_to_json(worksheet,{raw:true, blankrows: true, defval: ""});   
           resolve(arraylist as any[])
         
       }    

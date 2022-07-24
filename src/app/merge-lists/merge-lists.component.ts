@@ -116,15 +116,40 @@ export class MergeListsComponent implements OnInit {
     let fileReader = new FileReader(); 
     
     fileReader.readAsArrayBuffer(file);
-    const result = new Promise<any[]>(
+    const result = new Promise<Record<string, string>[]>(
       (resolve) => {
         fileReader.onload = (event) => {    
           const data = event.target?.result; 
-          let workbook = XLSX.read(data, {type:"binary"});   
+          let workbook = XLSX.read(data, {type:"binary"});  
           var first_sheet_name = workbook.SheetNames[0];  
           let worksheet = workbook.Sheets[first_sheet_name];  
-          let arraylist = XLSX.utils.sheet_to_json(worksheet,{raw:true});   
-          resolve(arraylist as any[])
+          let arraylist = XLSX.utils.sheet_to_json<Record<string, string>>(worksheet,{raw:true, blankrows: true, defval: ""});   
+          const headers = Object.keys(arraylist[0])
+          const dublicates: string[][] = []
+
+          for (const header of headers.filter(i => i.match(/_(\d+)$/))){
+            dublicates.push(headers.filter(i => i.startsWith(header.replace(/_(\d+)$/, ""))))
+          }
+
+          for (const dublicate of dublicates){
+            for (const element of arraylist){
+              for (let i = dublicate.length -1; i >=0; i--){
+                if (element[dublicate[i]])
+                  element[dublicate[0]] = element[dublicate[i]]
+              }
+              for (let i = 1; i < dublicate.length; i++){
+                delete element[dublicate[i]]
+              }
+            }
+          }
+
+          // for (const raw of arraylist){
+          //   for (const header of Object.keys(arraylist[0])){
+
+          //   }
+          // }
+          console.log(arraylist[0])
+          resolve(arraylist)
         
       }    
       }
@@ -222,7 +247,6 @@ export class MergeListsComponent implements OnInit {
     }
     this.getResultfileColumns()
     this.getPhoneNumberColumns()
-    this.saveSettings()
     this.isFilesMatched = true
   }
 
@@ -256,9 +280,9 @@ export class MergeListsComponent implements OnInit {
     this.resultFileColumns.push(this.preferablePhoneNumberColumn)
     this.availibleColumns.push(this.preferablePhoneNumberColumn)
     this.resultFile = this.resultFile.filter(i => i[this.preferablePhoneNumberColumn])
-    this.saveSettings()
     this.isPhoneSetted = true
     this.isExportSetted = true
+    this.saveNotExportedColumns()
   }
 
 
@@ -279,7 +303,6 @@ export class MergeListsComponent implements OnInit {
       }
   }
 
-  
 
   addPhoneNumberColumn(name: string){
     if (this.resultFileColumns.includes(name) && this.availibleColumns.includes(name)&& !this.phoneNumberColumns.includes(name)){
@@ -350,8 +373,9 @@ export class MergeListsComponent implements OnInit {
   exportProjects(){
     if (!this.sessionKey || !this.userId)
       return ;
+    this.saveFiltersData()
+    this.saveNotExportedColumns()
     this.projectsUploadResult = []
-    this.saveSettings()
     const projectIds: number[] = []
     for (const filter of this.filters){
 
@@ -411,7 +435,8 @@ export class MergeListsComponent implements OnInit {
   }
 
   exportFiles(){
-    this.saveSettings()
+    this.saveFiltersData()
+    this.saveNotExportedColumns()
     const files: string[] = []
     for (const filter of this.filters){
       if (!files.includes(filter.filename))
@@ -444,12 +469,13 @@ export class MergeListsComponent implements OnInit {
       // console.log(file, records.length)
       const worksheet: XLSX.WorkSheet = XLSX.utils.json_to_sheet(exportedRecords);
       const csvOutput: string = XLSX.utils.sheet_to_csv(worksheet);
-      FileSaver.saveAs(new Blob([csvOutput]), `${file}.csv`)
+      FileSaver.saveAs(new Blob([csvOutput]), `${file}(${exportedRecords.length}).csv`)
     }    
   }
 
   buildFilters(){
     this.getAvailibleProjects()
+    this.loadFiltersData()
     const filters: {filename: string, filter: Record<string, string>}[] = []
     const values: Record<string, string[]> = {}
     // const columns: Record<string, number> = {}
@@ -501,47 +527,7 @@ export class MergeListsComponent implements OnInit {
       this.filterByColumns.splice(index, 1)
   }
 
-  saveSettings(){
-   
 
-    localStorage.setItem('mergeColumn', this.mergeColumn)
-    localStorage.setItem('preferablePhoneNumberColumn', this.preferablePhoneNumberColumn)
-    localStorage.setItem('isAllowOtherCountries', `${this.isAllowOtherCountries}`)
-    localStorage.setItem('defaultCountryCode', this.defaultCountryCode)
-    localStorage.setItem('phoneNumberColumns', this.phoneNumberColumns.toString())
-    localStorage.setItem('filters', JSON.stringify(this.filters))
-    localStorage.setItem('exportedColumns', JSON.stringify(this.exportedColumns))
-    
-    localStorage.setItem('filterByColumns', this.filterByColumns.toString())
-  }
-
-  loadSettings(){
-  
-    this.mergeColumn =  localStorage.getItem('mergeColumn') ?? 'ZoomInfo Contact ID';
-
-    this.preferablePhoneNumberColumn = localStorage.getItem('preferablePhoneNumberColumn') ?? "Preferable Phone number";
-
-    this.isAllowOtherCountries = Boolean(localStorage.getItem('isAllowOtherCountries'));
-
-    this.defaultCountryCode = localStorage.getItem('defaultCountryCode') ?? 'US';
-
-    this.phoneNumberColumns = localStorage.getItem('phoneNumberColumns')?.split(',') ??
-        [
-            "Mobile phone",
-            "Direct Phone Number",
-            "Phone",
-            "Custom field: MobilePhone",
-            "Custom field: PhoneNumbe",
-            "Custom field: Phone3",
-            "Custom field: Phone4"
-          ];
-    
-    this.filters = JSON.parse(localStorage.getItem('filters') ?? '[]');
-
-    this.exportedColumns = JSON.parse(localStorage.getItem('exportedColumns') ?? '[]')
-    this.filterByColumns = localStorage.getItem('filterByColumns')?.split(',') ?? []
-
-  }
 
   saveSession(){
     if (this.userId)
@@ -561,5 +547,84 @@ export class MergeListsComponent implements OnInit {
     this.sessionKey = localStorage.getItem('session-key') ?? undefined
 
   }
+
+
+  savePhoneNumberSettings(){
+    localStorage.setItem("preferablePhoneNumberColumn", this.preferablePhoneNumberColumn)
+    if (this.contactNameColumn)
+      localStorage.setItem("contactNameColumn", this.contactNameColumn) 
+    if (this.websiteColumn)
+      localStorage.setItem("websiteColumn", this.websiteColumn) 
+    localStorage.setItem("isAllowOtherCountries", String(this.isAllowOtherCountries))
+    localStorage.setItem("defaultCountryCode", this.defaultCountryCode)
+    const storedPhoneNumberColumns: string[] = localStorage.getItem("phoneNumberColumns")?.split(',')??[]
+    for (const column of this.phoneNumberColumns){
+      if (!storedPhoneNumberColumns.includes(column)){
+        storedPhoneNumberColumns.push(column)
+      }
+    }
+    localStorage.setItem("phoneNumberColumns", storedPhoneNumberColumns.toString())
+
+  }
+
+  loadPhoneNumberSettings(){
+    this.preferablePhoneNumberColumn = localStorage.getItem("preferablePhoneNumberColumn") ?? this.preferablePhoneNumberColumn
+    this.contactNameColumn = localStorage.getItem("contactNameColumn") ?? this.contactNameColumn
+    this.websiteColumn = localStorage.getItem("websiteColumn") ??  this.websiteColumn
+    this.isAllowOtherCountries = Boolean(localStorage.getItem("isAllowOtherCountries") ?? "false")
+    this.defaultCountryCode = localStorage.getItem("defaultCountryCode") ?? this.defaultCountryCode
+    const storedPhoneNumberColumns: string[] = localStorage.getItem("phoneNumberColumns")?.split(',')??[]
+    if (storedPhoneNumberColumns.length > 0){
+      for (const column of this.phoneNumberColumns)
+        this.deletePhoneNumberColumn(column)
+      for (const column of storedPhoneNumberColumns)
+        this.addPhoneNumberColumn(column)      
+    }
+    
+  }
+
+  saveFiltersData(){
+    if (this.filters.length > 0){
+      localStorage.setItem("filtersData", JSON.stringify(this.filters))
+    }
+  }
+
+  loadFiltersData(){
+    const storedFiltersData:{projectId?: number, filename: string, filter: Record<string, string>}[] = JSON.parse(localStorage.getItem("filtersData") ?? "[]")
+    if (Array.isArray(storedFiltersData) && storedFiltersData.length > 0){
+      for (const storedFilter of storedFiltersData){
+        const filter = this.filters.find(i => JSON.stringify(i.filter)===JSON.stringify(storedFilter.filter))
+        if (filter){
+          filter.filename = storedFilter.filename
+          filter.projectId = storedFilter.projectId
+        }
+      }
+    }
+  }
+
+  saveNotExportedColumns(){
+    const notExportedColumns: {
+      column: string;
+      isExported: boolean;
+  }[] = this.exportedColumns.filter(i => !i.isExported)
+    localStorage.setItem("notExportedColumns", JSON.stringify(notExportedColumns))
+  }
+
+  loadNotExportedColumns(){
+    const notExportedColumns: {
+      column: string;
+      isExported: boolean;
+  }[] = JSON.parse(localStorage.getItem("notExportedColumns") ?? "[]")
+    if (Array.isArray(notExportedColumns) && notExportedColumns.length > 0){
+      for (const column of notExportedColumns){
+        const existingColumn = this.exportedColumns.find(i => i.column===column.column)
+        if (existingColumn){
+          existingColumn.isExported = false
+        }
+      }
+    }
+    
+  }
+
 
 }
