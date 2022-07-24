@@ -7,8 +7,8 @@ export class IpmaxiApiService{
     
     constructor(private httpClient: HttpClient) {}
 
-    baseUrl = "http://localhost:4547"
-    // baseUrl = "https://custom.api.convolo.ai"
+    // baseUrl = "http://localhost:4547"
+    baseUrl = "https://custom.api.convolo.ai"
 
     generateRandomString(length: number): string{
         const alphabet = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890'
